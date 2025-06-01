@@ -1,0 +1,26 @@
+# Build folders
+/build/
+out/
+bin/
+*.exe
+*.dll
+*.lib
+*.pdb
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# vcpkg installed packages
+vcpkg_installed/
+
+# VS Code settings
+.vscode/
+
+# Logs and temp files
+*.log
+*.obj
+*.tmp
+*.user
