@@ -8,6 +8,13 @@ set(CMAKE_PREFIX_PATH "C:/Users/darac/vcpkg/installed/x64-windows")
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+  libavformat
+  libavcodec
+  libswscale
+  libswresample
+  libavutil
+)
 
 add_definitions(-DSDL_MAIN_HANDLED)
 
