@@ -7,6 +7,7 @@ extern "C" {
 }
 
 #include <iostream>
+#include <chrono>
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -57,11 +58,10 @@ int main(int argc, char* argv[]) {
     }
 
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER)) {
-    std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
-    return -1;
+        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
+        return -1;
     }
     std::cout << "✅ SDL initialized!" << std::endl;
-
 
     SDL_Window* window = SDL_CreateWindow(
         "MediaPlayer",
@@ -72,17 +72,16 @@ int main(int argc, char* argv[]) {
         0
     );
     if (!window) {
-    std::cerr << "❌ Failed to create SDL window: " << SDL_GetError() << std::endl;
-    return -1;
+        std::cerr << "❌ Failed to create SDL window: " << SDL_GetError() << std::endl;
+        return -1;
     }
-    std::cout << "✅ SDL window created!" << std::endl;
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) {
-    std::cerr << "❌ Failed to create SDL renderer: " << SDL_GetError() << std::endl;
-    return -1;
+        std::cerr << "❌ Failed to create SDL renderer: " << SDL_GetError() << std::endl;
+        return -1;
     }
-    std::cout << "✅ SDL renderer created!" << std::endl;
+
     SDL_Texture* texture = SDL_CreateTexture(
         renderer,
         SDL_PIXELFORMAT_RGB24,
@@ -91,10 +90,9 @@ int main(int argc, char* argv[]) {
         codecCtx->height
     );
     if (!texture) {
-    std::cerr << "❌ Failed to create SDL texture: " << SDL_GetError() << std::endl;
-    return -1;
+        std::cerr << "❌ Failed to create SDL texture: " << SDL_GetError() << std::endl;
+        return -1;
     }
-    std::cout << "✅ SDL texture created!" << std::endl;
 
     SwsContext* swsCtx = sws_getContext(
         codecCtx->width,
@@ -119,6 +117,9 @@ int main(int argc, char* argv[]) {
     SDL_Event event;
     bool quit = false;
 
+    auto start_time = std::chrono::steady_clock::now();
+    AVRational time_base = formatCtx->streams[videoStreamIndex]->time_base;
+
     while (!quit) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -131,20 +132,30 @@ int main(int argc, char* argv[]) {
             if (packet.stream_index == videoStreamIndex) {
                 if (avcodec_send_packet(codecCtx, &packet) == 0) {
                     while (avcodec_receive_frame(codecCtx, frame) == 0) {
-                        sws_scale(swsCtx,
-                                  frame->data,
-                                  frame->linesize,
-                                  0,
-                                  codecCtx->height,
-                                  rgbFrame->data,
-                                  rgbFrame->linesize);
+                        sws_scale(
+                            swsCtx,
+                            frame->data,
+                            frame->linesize,
+                            0,
+                            codecCtx->height,
+                            rgbFrame->data,
+                            rgbFrame->linesize
+                        );
+
+                        int64_t pts = frame->best_effort_timestamp;
+                        double frame_time_ms = (pts * av_q2d(time_base)) * 1000;
+
+                        auto now = std::chrono::steady_clock::now();
+                        double elapsed_time_ms = std::chrono::duration<double, std::milli>(now - start_time).count();
+
+                        if (frame_time_ms > elapsed_time_ms) {
+                            SDL_Delay(static_cast<Uint32>(frame_time_ms - elapsed_time_ms));
+                        }
 
                         SDL_UpdateTexture(texture, nullptr, rgbFrame->data[0], rgbFrame->linesize[0]);
                         SDL_RenderClear(renderer);
                         SDL_RenderCopy(renderer, texture, nullptr, nullptr);
                         SDL_RenderPresent(renderer);
-
-                        SDL_Delay(33);
                     }
                 }
             }
