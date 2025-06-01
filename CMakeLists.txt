@@ -12,4 +12,7 @@ target_link_libraries(MediaPlayer
     avformat
     avcodec
     avutil
+    swscale
+    SDL2
+    SDL2main
 )
